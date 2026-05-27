@@ -12,6 +12,7 @@ export default function AdminDashboard() {
 
     if (!isAdmin) {
       router.push("/login");
+      return;
     }
 
     fetchLogs();
@@ -32,16 +33,30 @@ export default function AdminDashboard() {
     setLogs(data);
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("admin_session");
+    router.push("/login");
+  };
+
   return (
     <main className="min-h-screen bg-gray-100 p-4">
       <div className="max-w-5xl mx-auto">
-        <h1 className="text-2xl font-bold mb-4">
-          Admin Dashboard
-        </h1>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold">
+            Admin Dashboard
+          </h1>
+
+          <button
+            onClick={handleLogout}
+            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition"
+          >
+            Logout
+          </button>
+        </div>
 
         <button
           onClick={() => router.push("/admin/employees")}
-          className="mb-4 bg-black text-white px-4 py-2 rounded"
+          className="mb-4 bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition"
         >
           + Register Employee
         </button>
@@ -50,20 +65,24 @@ export default function AdminDashboard() {
           <table className="w-full text-sm">
             <thead className="bg-gray-200">
               <tr>
-                <th className="p-2">Employee ID</th>
-                <th>Gate</th>
-                <th>Action</th>
-                <th>Time</th>
+                <th className="p-2 text-left">Employee ID</th>
+                <th className="text-left">Gate</th>
+                <th className="text-left">Action</th>
+                <th className="text-left">Time</th>
               </tr>
             </thead>
 
             <tbody>
               {logs.map((log, i) => (
                 <tr key={i} className="border-t">
-                  <td className="p-2"> {log.employee_id?.slice(0, 8)}</td>
+                  <td className="p-2">
+                    {log.employee_id?.slice(0, 8)}
+                  </td>
                   <td>{log.gate}</td>
                   <td>{log.action}</td>
-                  <td>{new Date(log.created_at).toLocaleString()}</td>
+                  <td>
+                    {new Date(log.created_at).toLocaleString()}
+                  </td>
                 </tr>
               ))}
             </tbody>
