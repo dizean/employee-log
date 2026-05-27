@@ -24,7 +24,7 @@ export default function SetupPassword() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) router.replace("/admin-login");
+      if (!data.session) router.replace("/login");
     });
   }, []);
 
