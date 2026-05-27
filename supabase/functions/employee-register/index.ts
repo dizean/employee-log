@@ -8,6 +8,18 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+const THRESHOLD = 0.45;
+
+function euclideanDistance(a: number[], b: number[]) {
+  let sum = 0;
+
+  for (let i = 0; i < a.length; i++) {
+    sum += (a[i] - b[i]) ** 2;
+  }
+
+  return Math.sqrt(sum);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -19,8 +31,12 @@ serve(async (req) => {
   );
 
   try {
-    const { name, role, employee_code, descriptor, image_base64 } =
-      await req.json();
+    const {
+      name,
+      role,
+      descriptor,
+      image_base64,
+    } = await req.json();
 
     if (!name || !descriptor) {
       return new Response(
@@ -31,12 +47,50 @@ serve(async (req) => {
         }
       );
     }
+
+    // 🔴 STEP 1: GET ALL EXISTING FACE DESCRIPTORS
+    const { data: faces, error: faceFetchError } = await supabase
+      .from("employee_faces")
+      .select("employee_id, descriptor");
+
+    if (faceFetchError) {
+      return new Response(
+        JSON.stringify({ error: faceFetchError.message }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // 🔴 STEP 2: COMPARE FACE SIMILARITY
+    const incoming = descriptor as number[];
+
+    for (const face of faces || []) {
+      const stored = face.descriptor as number[];
+
+      const distance = euclideanDistance(incoming, stored);
+
+      if (distance < THRESHOLD) {
+        return new Response(
+          JSON.stringify({
+            error: "Face already exists",
+            duplicate: true,
+            match_employee_id: face.employee_id,
+          }),
+          {
+            status: 409,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+    }
+
     const { data: employee, error: empError } = await supabase
       .from("employees")
       .insert({
         name,
         role,
-        employee_code,
       })
       .select()
       .single();
@@ -61,35 +115,34 @@ serve(async (req) => {
         (c) => c.charCodeAt(0)
       );
 
-      const { error: uploadError } = await supabase.storage
+      await supabase.storage
         .from("employee-images")
         .upload(fileName, buffer, {
           contentType: "image/jpeg",
         });
 
-      if (!uploadError) {
-        const { data } = supabase.storage
-          .from("employee-images")
-          .getPublicUrl(fileName);
+      const { data } = supabase.storage
+        .from("employee-images")
+        .getPublicUrl(fileName);
 
-        imageUrl = data.publicUrl;
-      }
+      imageUrl = data.publicUrl;
     }
+
     await supabase
       .from("employees")
       .update({ image_url: imageUrl })
       .eq("id", employee.id);
 
-    const { error: faceError } = await supabase
+    const { error: insertFaceError } = await supabase
       .from("employee_faces")
       .insert({
         employee_id: employee.id,
         descriptor,
       });
 
-    if (faceError) {
+    if (insertFaceError) {
       return new Response(
-        JSON.stringify({ error: faceError.message }),
+        JSON.stringify({ error: insertFaceError.message }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -107,6 +160,7 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
+
   } catch (err: any) {
     return new Response(
       JSON.stringify({

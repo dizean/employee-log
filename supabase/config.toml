@@ -53,3 +53,36 @@ entrypoint = "./functions/set-password/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/set-password/*.html" ]
+
+[functions.get-employees]
+enabled = true
+verify_jwt = false
+import_map = "./functions/get-employees/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/get-employees/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/get-employees/*.html" ]
+
+[functions.update-employee]
+enabled = true
+verify_jwt = false
+import_map = "./functions/update-employee/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/update-employee/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/update-employee/*.html" ]
+
+[functions.deactivate-employee]
+enabled = true
+verify_jwt = false
+import_map = "./functions/deactivate-employee/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/deactivate-employee/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/deactivate-employee/*.html" ]

@@ -2,19 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from "@/lib/supabaseClient";
 
 export default function SetupPassword() {
   const router = useRouter();
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [user, setUser] = useState<any>(null);
 
   const isStrong = (pwd: string) =>
     pwd.length >= 8 &&
@@ -23,59 +21,108 @@ export default function SetupPassword() {
     /[0-9]/.test(pwd);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) router.replace("/login");
+    const init = async () => {
+      const { data, error } = await supabase.auth.getSession();
+
+      if (error || !data.session) {
+        router.replace("/login");
+        return;
+      }
+
+      setUser(data.session.user);
+      setLoading(false);
+    };
+
+    init();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        router.replace("/login");
+      } else {
+        setUser(session.user);
+      }
     });
-  }, []);
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [router]);
 
   const handleSubmit = async () => {
+    if (!password || !confirm) {
+      alert("Please fill all fields");
+      return;
+    }
+
     if (password !== confirm) {
       alert("Passwords do not match");
       return;
     }
 
     if (!isStrong(password)) {
-      alert("Weak password");
+      alert(
+        "Password must be at least 8 characters and include uppercase, lowercase, and a number"
+      );
       return;
     }
 
-    setLoading(true);
+    setSaving(true);
 
-    const session = await supabase.auth.getSession();
+    try {
+      // ✅ THIS IS THE ONLY CORRECT WAY (NO ADMIN API)
+      const { error } = await supabase.auth.updateUser({
+        password,
+      });
 
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/set-admin-password`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.data.session?.access_token}`,
-        },
-        body: JSON.stringify({ password }),
+      if (error) {
+        alert(error.message);
+        setSaving(false);
+        return;
       }
-    );
 
-    const data = await res.json();
+      // optional: refresh session after password update
+      await supabase.auth.refreshSession();
 
-    setLoading(false);
+      // optional cleanup flag
+      localStorage.setItem("first_login_done", "true");
 
-    if (!res.ok) {
-      alert(data.error || "Failed");
-      return;
+      // redirect after success
+      router.replace("/admin");
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong");
     }
 
-    router.push("/admin");
+    setSaving(false);
   };
 
+  if (loading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="bg-white p-6 rounded-xl shadow">
+          Checking session...
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-6 rounded-xl shadow w-full max-w-md">
-        <h1 className="text-xl font-bold mb-4">Set Admin Password</h1>
+    <main className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+      <div className="bg-white p-6 rounded-2xl shadow-lg w-full max-w-md">
+        <h1 className="text-2xl font-bold mb-2">
+          Set Your Password
+        </h1>
+
+        <p className="text-sm text-gray-500 mb-6">
+          Create a secure password for your account ({user?.email})
+        </p>
 
         <input
           type="password"
-          placeholder="Password"
-          className="w-full border p-2 mb-3 rounded"
+          placeholder="New Password"
+          className="w-full border border-gray-300 p-3 rounded-lg mb-4 outline-none focus:ring-2 focus:ring-black"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
@@ -83,17 +130,17 @@ export default function SetupPassword() {
         <input
           type="password"
           placeholder="Confirm Password"
-          className="w-full border p-2 mb-4 rounded"
+          className="w-full border border-gray-300 p-3 rounded-lg mb-6 outline-none focus:ring-2 focus:ring-black"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
         />
 
         <button
           onClick={handleSubmit}
-          disabled={loading}
-          className="w-full bg-black text-white p-3 rounded"
+          disabled={saving}
+          className="w-full bg-black hover:bg-gray-800 transition text-white p-3 rounded-lg font-medium disabled:opacity-50"
         >
-          {loading ? "Saving..." : "Save Password"}
+          {saving ? "Saving..." : "Set Password"}
         </button>
       </div>
     </main>
