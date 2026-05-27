@@ -8,7 +8,7 @@ export default function AdminDashboard() {
   const [logs, setLogs] = useState<any[]>([]);
 
   useEffect(() => {
-    const isAdmin = localStorage.getItem("admin");
+    const isAdmin = localStorage.getItem("admin_session");
 
     if (!isAdmin) {
       router.push("/login");
