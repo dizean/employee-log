@@ -127,8 +127,28 @@ export default function RegisterEmployee() {
 
       const data = await res.json();
 
+      // HANDLE ALL NON-OK RESPONSES SAFELY
       if (!res.ok) {
-        throw new Error(data.error || "Registration failed");
+        const message =
+          data?.error ||
+          data?.message ||
+          "Registration failed";
+
+        const lower = message.toLowerCase();
+
+        // treat duplicate face as UI validation error (not system crash)
+        if (
+          lower.includes("face already exists") ||
+          lower.includes("already registered") ||
+          lower.includes("duplicate") ||
+          lower.includes("face match found")
+        ) {
+          setError("This face is already registered in the system.");
+          return;
+        }
+
+        setError(message);
+        return;
       }
 
       alert("Employee registered successfully!");
@@ -139,7 +159,9 @@ export default function RegisterEmployee() {
       router.push("/admin");
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Something went wrong");
+
+      // fallback safety
+      setError(err?.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -194,7 +216,6 @@ export default function RegisterEmployee() {
           {/* FORM */}
           <div className="mt-5 space-y-4">
 
-            {/* NAME */}
             <div>
               <label className="text-sm font-medium">
                 Employee Name
@@ -207,7 +228,6 @@ export default function RegisterEmployee() {
               />
             </div>
 
-            {/* ROLE */}
             <div>
               <label className="text-sm font-medium">
                 Position / Role
@@ -228,7 +248,6 @@ export default function RegisterEmployee() {
               </select>
             </div>
 
-            {/* BUTTON */}
             <button
               onClick={registerEmployee}
               disabled={loading}

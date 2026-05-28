@@ -130,7 +130,7 @@ serve(async (req) => {
       JSON.stringify({
         matched: true,
         employee_id: matchedEmployeeId,
-        employee_name: employee.name,
+        employee_name: employees.name,
         action: actionToInsert,
         message: `${actionToInsert} logged successfully`,
       }),
